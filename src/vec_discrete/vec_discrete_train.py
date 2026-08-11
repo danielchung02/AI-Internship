@@ -7,6 +7,7 @@ Run from the project root:
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
 import math
 import random
@@ -63,22 +64,34 @@ class TrainConfig:
     evaluation_episodes: int = 3
     checkpoint_interval: int = 50_000
     log_interval: int = 1_000
+    stop_mean_reward: float | None = None
     output_dir: str = "outputs/engineered_vector_dqn"
     resume_path: str | None = None
 
 
 def parse_args() -> TrainConfig:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--total-steps", type=int, default=500_000)
-    parser.add_argument("--output-dir", type=str, default="outputs/engineered_vector_dqn")
+    defaults = TrainConfig()
+    parser.add_argument("--seed", type=int, default=defaults.seed)
+    parser.add_argument("--total-steps", type=int, default=defaults.total_steps)
+    parser.add_argument("--epsilon-decay-steps", type=int, default=defaults.epsilon_decay_steps)
+    parser.add_argument("--evaluation-interval", type=int, default=defaults.evaluation_interval)
+    parser.add_argument("--evaluation-episodes", type=int, default=defaults.evaluation_episodes)
+    parser.add_argument("--checkpoint-interval", type=int, default=defaults.checkpoint_interval)
+    parser.add_argument("--stop-mean-reward", type=float, default=defaults.stop_mean_reward)
+    parser.add_argument("--output-dir", type=str, default=defaults.output_dir)
     parser.add_argument("--resume", type=str, default=None)
-    parser.add_argument("--action-repeat", type=int, default=2)
+    parser.add_argument("--action-repeat", type=int, default=defaults.action_repeat)
     args = parser.parse_args()
 
     return TrainConfig(
         seed=args.seed,
         total_steps=args.total_steps,
+        epsilon_decay_steps=args.epsilon_decay_steps,
+        evaluation_interval=args.evaluation_interval,
+        evaluation_episodes=args.evaluation_episodes,
+        checkpoint_interval=args.checkpoint_interval,
+        stop_mean_reward=args.stop_mean_reward,
         output_dir=args.output_dir,
         resume_path=args.resume,
         action_repeat=args.action_repeat,
@@ -131,15 +144,15 @@ def evaluate(
     config: TrainConfig,
     seed_offset: int,
 ) -> tuple[float, float]:
-    env = make_env(config.seed + 10_000 + seed_offset)
-    rng = np.random.default_rng(config.seed + 20_000 + seed_offset)
+    env = make_env(config.seed + 10_000)
+    rng = np.random.default_rng(config.seed + 20_000)
     rewards: list[float] = []
 
     agent.online_network.eval()
     try:
         for episode_index in range(config.evaluation_episodes):
             state, _ = env.reset(
-                seed=config.seed + 30_000 + seed_offset + episode_index
+                seed=config.seed + 30_000 + episode_index
             )
             episode_reward = 0.0
 
@@ -163,8 +176,10 @@ def evaluate(
 
 
 def train(config: TrainConfig) -> None:
-    if config.total_steps <= 0:
-        raise ValueError("total_steps must be positive")
+    if config.total_steps < 0:
+        raise ValueError("total_steps must be non-negative")
+    if config.total_steps == 0 and config.stop_mean_reward is None:
+        raise ValueError("unbounded training requires stop_mean_reward")
     if config.warmup_steps < config.batch_size:
         raise ValueError("warmup_steps must be at least batch_size")
 
@@ -224,7 +239,12 @@ def train(config: TrainConfig) -> None:
     print(f"State dimension: {state_dim}, action dimension: {action_dim}")
 
     try:
-        for global_step in range(start_step + 1, config.total_steps + 1):
+        step_numbers = (
+            itertools.count(start_step + 1)
+            if config.total_steps == 0
+            else range(start_step + 1, config.total_steps + 1)
+        )
+        for global_step in step_numbers:
             current_step = global_step
             epsilon = epsilon_by_step(global_step, config)
 
@@ -306,6 +326,22 @@ def train(config: TrainConfig) -> None:
                         best_evaluation_reward=best_evaluation_reward,
                         config=asdict(config),
                     )
+                if (
+                    config.stop_mean_reward is not None
+                    and mean_reward >= config.stop_mean_reward
+                ):
+                    agent.save(
+                        checkpoint_dir / "threshold_reached.pt",
+                        global_step=global_step,
+                        episode_index=episode_index,
+                        best_evaluation_reward=best_evaluation_reward,
+                        config=asdict(config),
+                    )
+                    print(
+                        f"Reached mean reward target {config.stop_mean_reward:.2f} "
+                        f"at step {global_step}; stopping training."
+                    )
+                    break
 
             if global_step % config.checkpoint_interval == 0:
                 agent.save(
@@ -318,7 +354,7 @@ def train(config: TrainConfig) -> None:
 
         agent.save(
             checkpoint_dir / "final.pt",
-            global_step=config.total_steps,
+            global_step=current_step,
             episode_index=episode_index,
             best_evaluation_reward=best_evaluation_reward,
             config=asdict(config),

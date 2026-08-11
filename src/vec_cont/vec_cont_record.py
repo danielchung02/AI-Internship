@@ -12,6 +12,7 @@ import torch
 from gymnasium.wrappers import RecordVideo
 
 from src.agents.vec_cont.ppo import PPOAgent
+from src.envs.action_repeat import repeated_step
 from src.envs.lap import lap_finished as is_lap_finished
 from src.envs.vec_cont import make_vec_cont_env
 
@@ -22,6 +23,7 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/vec_cont_ppo/videos"))
     parser.add_argument("--episodes", type=int, default=3)
     parser.add_argument("--seed-start", type=int, default=20_000)
+    parser.add_argument("--action-repeat", type=int, default=None)
     parser.add_argument("--until-lap-finished", action="store_true")
     parser.add_argument(
         "--success-only",
@@ -37,7 +39,11 @@ def main() -> None:
     try:
         state_dim = int(np.prod(model_env.observation_space.shape))
         agent = PPOAgent(state_dim, model_env.action_space, device)
-        agent.load(args.checkpoint, load_optimizer=False)
+        metadata = agent.load(args.checkpoint, load_optimizer=False)
+        saved_config = metadata.get("config", {})
+        action_repeat = int(args.action_repeat or saved_config.get("action_repeat", 1))
+        if action_repeat <= 0:
+            raise ValueError("action_repeat must be positive")
         agent.actor_critic.eval()
 
         if args.success_only:
@@ -58,8 +64,10 @@ def main() -> None:
                         reward_sum = 0.0
                         while True:
                             action, _, _ = agent.select_action(state, deterministic=True)
-                            state, reward, terminated, truncated, info = env.step(action)
-                            reward_sum += float(reward)
+                            state, reward, terminated, truncated, info = repeated_step(
+                                env, action, action_repeat
+                            )
+                            reward_sum += reward
                             if terminated or truncated:
                                 lap_finished = is_lap_finished(env, terminated)
                                 print(f"episode={episode} reward={reward_sum:.2f} lap_finished={lap_finished}")
@@ -93,8 +101,10 @@ def main() -> None:
                 reward_sum = 0.0
                 while True:
                     action, _, _ = agent.select_action(state, deterministic=True)
-                    state, reward, terminated, truncated, info = env.step(action)
-                    reward_sum += float(reward)
+                    state, reward, terminated, truncated, info = repeated_step(
+                        env, action, action_repeat
+                    )
+                    reward_sum += reward
                     if terminated or truncated:
                         lap_finished = is_lap_finished(env, terminated)
                         print(f"episode={episode} reward={reward_sum:.2f} lap_finished={lap_finished}")

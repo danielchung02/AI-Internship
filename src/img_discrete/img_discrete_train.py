@@ -122,12 +122,12 @@ def evaluate(
 ) -> tuple[float, float]:
     """Evaluate the greedy policy on fresh, deterministic episode seeds."""
     env = make_image_env()
-    rng = np.random.default_rng(config.seed + 20_000 + seed_offset)
+    rng = np.random.default_rng(config.seed + 20_000)
     rewards: list[float] = []
     agent.online_network.eval()
     try:
         for episode in range(config.evaluation_episodes):
-            image, _ = env.reset(seed=config.seed + 30_000 + seed_offset + episode)
+            image, _ = env.reset(seed=config.seed + 30_000 + episode)
             episode_reward = 0.0
             while True:
                 action = agent.select_action(image, epsilon=0.0, rng=rng)

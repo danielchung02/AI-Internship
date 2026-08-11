@@ -18,6 +18,7 @@ import torch
 
 from src.agents.vec_cont.ppo import PPOAgent
 from src.agents.vec_cont.rollout_buffer import RolloutBuffer
+from src.envs.action_repeat import repeated_step
 from src.envs.lap import lap_finished
 from src.envs.vec_cont import make_vec_cont_env
 
@@ -56,9 +57,11 @@ class TrainConfig:
     end_entropy_coefficient: float = 0.0
     max_grad_norm: float = 0.5
     initial_log_std: float = 0.0
+    action_repeat: int = 2
     evaluation_interval: int = 50_000
     evaluation_episodes: int = 5
     checkpoint_interval: int = 100_000
+    stop_mean_reward: float | None = None
     output_dir: str = "outputs/vec_cont_ppo"
     resume_path: str | None = None
     reset_best_evaluation: bool = False
@@ -82,9 +85,11 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--end-entropy-coefficient", type=float, default=defaults.end_entropy_coefficient)
     parser.add_argument("--max-grad-norm", type=float, default=defaults.max_grad_norm)
     parser.add_argument("--initial-log-std", type=float, default=defaults.initial_log_std)
+    parser.add_argument("--action-repeat", type=int, default=defaults.action_repeat)
     parser.add_argument("--evaluation-interval", type=int, default=defaults.evaluation_interval)
     parser.add_argument("--evaluation-episodes", type=int, default=defaults.evaluation_episodes)
     parser.add_argument("--checkpoint-interval", type=int, default=defaults.checkpoint_interval)
+    parser.add_argument("--stop-mean-reward", type=float, default=defaults.stop_mean_reward)
     parser.add_argument("--output-dir", type=str, default=defaults.output_dir)
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument(
@@ -109,9 +114,11 @@ def parse_args() -> TrainConfig:
         end_entropy_coefficient=args.end_entropy_coefficient,
         max_grad_norm=args.max_grad_norm,
         initial_log_std=args.initial_log_std,
+        action_repeat=args.action_repeat,
         evaluation_interval=args.evaluation_interval,
         evaluation_episodes=args.evaluation_episodes,
         checkpoint_interval=args.checkpoint_interval,
+        stop_mean_reward=args.stop_mean_reward,
         output_dir=args.output_dir,
         resume_path=args.resume,
         reset_best_evaluation=args.reset_best_evaluation,
@@ -133,12 +140,14 @@ def evaluate(agent: PPOAgent, config: TrainConfig, seed_offset: int) -> tuple[fl
     agent.actor_critic.eval()
     try:
         for episode in range(config.evaluation_episodes):
-            state, _ = env.reset(seed=config.seed + 30_000 + seed_offset + episode)
+            state, _ = env.reset(seed=config.seed + 30_000 + episode)
             reward_sum = 0.0
             while True:
                 action, _, _ = agent.select_action(state, deterministic=True)
-                state, reward, terminated, truncated, _ = env.step(action)
-                reward_sum += float(reward)
+                state, reward, terminated, truncated, _ = repeated_step(
+                    env, action, config.action_repeat
+                )
+                reward_sum += reward
                 if terminated or truncated:
                     break
             rewards.append(reward_sum)
@@ -149,8 +158,12 @@ def evaluate(agent: PPOAgent, config: TrainConfig, seed_offset: int) -> tuple[fl
 
 
 def train(config: TrainConfig) -> None:
-    if config.total_steps <= 0 or config.rollout_steps <= 0:
-        raise ValueError("total_steps and rollout_steps must be positive")
+    if config.total_steps < 0 or config.rollout_steps <= 0:
+        raise ValueError("total_steps must be non-negative and rollout_steps positive")
+    if config.total_steps == 0 and config.stop_mean_reward is None:
+        raise ValueError("unbounded training requires stop_mean_reward")
+    if config.action_repeat <= 0:
+        raise ValueError("action_repeat must be positive")
     if config.minibatch_size <= 0 or config.minibatch_size > config.rollout_steps:
         raise ValueError("minibatch_size must be in [1, rollout_steps]")
     if config.learning_rate <= 0 or config.end_learning_rate <= 0:
@@ -200,13 +213,20 @@ def train(config: TrainConfig) -> None:
     episode_length = 0
     next_evaluation = ((global_step // config.evaluation_interval) + 1) * config.evaluation_interval
     next_checkpoint = ((global_step // config.checkpoint_interval) + 1) * config.checkpoint_interval
-    print(f"Device: {device}; state dimension: {state_dim}; action dimension: {agent.action_dim}")
+    print(
+        f"Device: {device}; state dimension: {state_dim}; "
+        f"action dimension: {agent.action_dim}; action repeat: {config.action_repeat}"
+    )
 
     try:
-        while global_step < config.total_steps:
-            while len(buffer) < config.rollout_steps and global_step < config.total_steps:
+        while config.total_steps == 0 or global_step < config.total_steps:
+            while len(buffer) < config.rollout_steps and (
+                config.total_steps == 0 or global_step < config.total_steps
+            ):
                 action, log_prob, value = agent.select_action(state)
-                next_state, reward, terminated, truncated, info = env.step(action)
+                next_state, reward, terminated, truncated, info = repeated_step(
+                    env, action, config.action_repeat
+                )
                 next_value = 0.0 if terminated else agent.value(next_state)
                 buffer.add(
                     state, action, float(reward), terminated, terminated or truncated,
@@ -214,7 +234,7 @@ def train(config: TrainConfig) -> None:
                 )
                 global_step += 1
                 state = next_state
-                episode_reward += float(reward)
+                episode_reward += reward
                 episode_length += 1
 
                 if terminated or truncated:
@@ -230,7 +250,8 @@ def train(config: TrainConfig) -> None:
                     episode_reward = 0.0
                     episode_length = 0
 
-            progress_remaining = max(0.0, 1.0 - global_step / config.total_steps)
+            schedule_steps = config.total_steps if config.total_steps > 0 else 3_000_000
+            progress_remaining = max(0.0, 1.0 - global_step / schedule_steps)
             current_learning_rate = config.end_learning_rate + (
                 config.learning_rate - config.end_learning_rate
             ) * progress_remaining
@@ -258,6 +279,19 @@ def train(config: TrainConfig) -> None:
                 if mean_reward > best_evaluation_reward:
                     best_evaluation_reward = mean_reward
                     agent.save(checkpoint_dir / "best.pt", global_step=global_step, episode_index=episode_index, best_evaluation_reward=best_evaluation_reward, config=asdict(config))
+                if (
+                    config.stop_mean_reward is not None
+                    and mean_reward >= config.stop_mean_reward
+                ):
+                    agent.save(
+                        checkpoint_dir / "threshold_reached.pt",
+                        global_step=global_step,
+                        episode_index=episode_index,
+                        best_evaluation_reward=best_evaluation_reward,
+                        config=asdict(config),
+                    )
+                    print(f"Reached mean reward target {config.stop_mean_reward:.2f}; stopping training.")
+                    break
                 next_evaluation += config.evaluation_interval
 
             if global_step >= next_checkpoint:
