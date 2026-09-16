@@ -1,0 +1,21 @@
+{
+  "seed": 42,
+  "total_steps": 0,
+  "replay_capacity": 50000,
+  "batch_size": 64,
+  "warmup_steps": 20000,
+  "train_frequency": 4,
+  "target_update_interval": 2000,
+  "gamma": 0.99,
+  "learning_rate": 0.0001,
+  "epsilon_start": 1.0,
+  "epsilon_end": 0.05,
+  "epsilon_decay_steps": 2000000,
+  "action_repeat": 2,
+  "evaluation_interval": 100000,
+  "evaluation_episodes": 10,
+  "checkpoint_interval": 100000,
+  "stop_mean_reward": 830.0,
+  "output_dir": "outputs/img_discrete_double_dqn_3m",
+  "resume_path": "outputs/img_discrete_double_dqn_3m/checkpoints/interrupted_step_621428.pt"
+}

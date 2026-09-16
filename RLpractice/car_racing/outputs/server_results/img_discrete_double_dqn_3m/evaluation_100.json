@@ -1,0 +1,12 @@
+{
+  "checkpoint": "outputs\\server_results\\img_discrete_double_dqn_3m\\checkpoints\\threshold_reached.pt",
+  "episodes": 100,
+  "seed_start": 10000,
+  "action_repeat": 2,
+  "mean_reward": 870.3086522607863,
+  "std_reward": 83.77761793818885,
+  "min_reward": 321.9269102989895,
+  "max_reward": 932.599999999987,
+  "completed_laps": 31,
+  "completion_rate": 0.31
+}

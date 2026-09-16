@@ -1,0 +1,30 @@
+{
+  "seed": 42,
+  "total_steps": 0,
+  "schedule_steps": 5000000,
+  "rollout_steps": 4096,
+  "update_epochs": 8,
+  "minibatch_size": 256,
+  "gamma": 0.995,
+  "gae_lambda": 0.95,
+  "learning_rate": 0.00025,
+  "end_learning_rate": 2.5e-05,
+  "clip_ratio": 0.15,
+  "value_coefficient": 0.5,
+  "entropy_coefficient": 0.005,
+  "end_entropy_coefficient": 0.0005,
+  "max_grad_norm": 0.5,
+  "target_kl": 0.015,
+  "initial_log_std": -0.5,
+  "initial_action_mean_bias": [
+    0.0,
+    -1.0986123,
+    -2.2975599
+  ],
+  "evaluation_interval": 100000,
+  "evaluation_episodes": 10,
+  "checkpoint_interval": 100000,
+  "stop_mean_reward": 850.0,
+  "output_dir": "outputs/img_cont_ppo_850target",
+  "resume_path": null
+}

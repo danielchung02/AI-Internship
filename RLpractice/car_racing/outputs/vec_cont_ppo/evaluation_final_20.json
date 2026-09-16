@@ -1,0 +1,11 @@
+{
+  "checkpoint": "outputs\\vec_cont_ppo\\checkpoints\\final.pt",
+  "episodes": 20,
+  "seed_start": 10000,
+  "mean_reward": 659.3432709216206,
+  "std_reward": 241.1875980666295,
+  "min_reward": 205.63798219584618,
+  "max_reward": 935.0999999999871,
+  "completed_laps": 1,
+  "completion_rate": 0.05
+}

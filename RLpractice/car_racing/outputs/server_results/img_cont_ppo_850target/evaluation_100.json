@@ -1,0 +1,11 @@
+{
+  "checkpoint": "outputs\\server_results\\img_cont_ppo_850target\\checkpoints\\threshold_reached.pt",
+  "episodes": 100,
+  "seed_start": 10000,
+  "mean_reward": 853.4815188738202,
+  "std_reward": 83.3669820794886,
+  "min_reward": 464.356435643552,
+  "max_reward": 931.5999999999916,
+  "completed_laps": 15,
+  "completion_rate": 0.15
+}

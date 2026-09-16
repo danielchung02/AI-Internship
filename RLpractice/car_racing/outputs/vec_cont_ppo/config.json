@@ -1,0 +1,19 @@
+{
+  "seed": 42,
+  "total_steps": 2000000,
+  "rollout_steps": 2048,
+  "update_epochs": 10,
+  "minibatch_size": 256,
+  "gamma": 0.99,
+  "gae_lambda": 0.95,
+  "learning_rate": 0.0003,
+  "clip_ratio": 0.2,
+  "value_coefficient": 0.5,
+  "entropy_coefficient": 0.0,
+  "max_grad_norm": 0.5,
+  "evaluation_interval": 50000,
+  "evaluation_episodes": 5,
+  "checkpoint_interval": 100000,
+  "output_dir": "outputs\\vec_cont_ppo",
+  "resume_path": "outputs\\vec_cont_ppo\\checkpoints\\final.pt"
+}

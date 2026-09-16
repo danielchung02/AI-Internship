@@ -1,0 +1,21 @@
+{
+  "seed": 42,
+  "total_steps": 500000,
+  "replay_capacity": 200000,
+  "batch_size": 128,
+  "warmup_steps": 5000,
+  "train_frequency": 4,
+  "target_update_interval": 2000,
+  "gamma": 0.99,
+  "learning_rate": 0.0001,
+  "epsilon_start": 1.0,
+  "epsilon_end": 0.05,
+  "epsilon_decay_steps": 200000,
+  "action_repeat": 2,
+  "evaluation_interval": 25000,
+  "evaluation_episodes": 3,
+  "checkpoint_interval": 50000,
+  "log_interval": 1000,
+  "output_dir": "outputs\\engineered_vector_dqn",
+  "resume_path": null
+}

@@ -1,0 +1,23 @@
+{
+  "seed": 42,
+  "total_steps": 3000000,
+  "rollout_steps": 4096,
+  "update_epochs": 10,
+  "minibatch_size": 512,
+  "gamma": 0.995,
+  "gae_lambda": 0.95,
+  "learning_rate": 0.00025,
+  "end_learning_rate": 2.5e-05,
+  "clip_ratio": 0.15,
+  "value_coefficient": 0.5,
+  "entropy_coefficient": 0.003,
+  "end_entropy_coefficient": 0.0005,
+  "max_grad_norm": 0.5,
+  "initial_log_std": 0.0,
+  "evaluation_interval": 100000,
+  "evaluation_episodes": 10,
+  "checkpoint_interval": 100000,
+  "output_dir": "outputs\\vec_cont_ppo_control_tuned_01",
+  "resume_path": "outputs\\vec_cont_ppo\\checkpoints\\best.pt",
+  "reset_best_evaluation": true
+}

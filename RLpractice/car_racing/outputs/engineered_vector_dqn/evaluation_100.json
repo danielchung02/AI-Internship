@@ -1,0 +1,12 @@
+{
+  "checkpoint": "outputs\\engineered_vector_dqn\\checkpoints\\best.pt",
+  "episodes": 100,
+  "seed_start": 10000,
+  "action_repeat": 2,
+  "mean_reward": 809.7434486136302,
+  "std_reward": 91.30436533094884,
+  "min_reward": 493.05993690850187,
+  "max_reward": 936.0999999999891,
+  "completed_laps": 8,
+  "completion_rate": 0.08
+}

@@ -1,0 +1,23 @@
+강화학습 ddpg
+
+가운데 있는 애들은 critirc이 미가 여야
+grpo
+한 에피가 한 steip
+reinforce에서 바로 데이터 재사용 그리고 baseline을 z스코어로
+한 distribution에서 여러번 sampel해서 mean and std구하기
+
+ddpg-> td3, sac
+ppo는 17년 노문 이건 16논문
+ddpg는 dixrete가 안됨
+
+지메일 확인
+
+무조코  dmc
+
+todo
+
+1. pendulum ddpg로
+2. halpf 치타도 ppo랑 ddpg 둘다로 그리고 비교
+둘다 100만 step 해서 10000점이면 잘한거
+3. (challenging)ddpg로 carraacing
+ 교수님 부르셨을떄 말할 스토리텔링 항상 대비
