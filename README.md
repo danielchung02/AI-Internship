@@ -1,8 +1,7 @@
-# AI-Internship
-
 # AI Internship: Deep Reinforcement Learning
 
-Gymnasium 환경에서 actor-critic 기반 강화학습 알고리즘을 직접 구현한 학습 코드입니다. 학습 코드의 구조를 가능한 한 통일해, 알고리즘별 차이를 비교하며 공부할 수 있도록 구성했습니다.
+Gymnasium 환경에서 actor-critic 기반 강화학습 알고리즘을 직접 구현한 학습 코드
+학습 코드의 구조를 가능한 한 통일해, 알고리즘별 차이를 비교
 
 ## Implemented algorithms
 
